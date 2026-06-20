@@ -210,6 +210,12 @@ rpi-desk-pet-starter/
 
 ---
 
+## Credits
+
+The pixel-art status characters in `images/` are based on [Sumikko Gurashi](https://sumikkogurashi.com/).
+
+---
+
 ## License
 
 MIT — use freely, customize and personalize, make someone smile <3
