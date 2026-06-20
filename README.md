@@ -1,6 +1,6 @@
 # rpi-desk-pet-starter ♡
 
-**Clone me and make your own remote desk pet.**
+**Clone me and make your own remote desk pet!**
 
 A small, cozy long-distance display for two people: one **sender** page on your laptop/phone updates a **display** running fullscreen on a Raspberry Pi. No custom backend — just HTML, JavaScript, and [Supabase](https://supabase.com) for realtime sync and photo storage.
 
@@ -39,7 +39,7 @@ You (sender page)  ──►  Supabase  ◄──  Raspberry Pi (display, kiosk 
 
 ## Parts I used (yours may vary)
 
-- **Raspberry Pi** (any model that runs Raspberry Pi OS desktop)
+- **Raspberry Pi** (any model that runs Raspberry Pi OS desktop) - I used a Rasberry Pi Zero 2W
 - **Small HDMI/DSI display** — I used a Waveshare LCD in 800×480-ish kiosk mode
 - **Supabase free tier** — Postgres + realtime + storage
 - **Chromium kiosk** — autostart fullscreen on boot
@@ -212,4 +212,4 @@ rpi-desk-pet-starter/
 
 ## License
 
-MIT — use freely, customize wildly, make someone smile.
+MIT — use freely, customize and personalize, make someone smile <3
