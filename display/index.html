@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>desk pet</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 800px;
+    height: 480px;
+    overflow: hidden;
+    background: #f0ebe0;
+    font-family: 'Space Mono', 'Courier New', monospace;
+    cursor: none;
+  }
+
+  #display {
+    width: 800px;
+    height: 480px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .screen {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+  }
+  .screen.visible { opacity: 1; pointer-events: all; }
+
+  .slide-dots {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 7px;
+    z-index: 10;
+  }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: #c9b8a0; transition: background 0.3s; }
+  .dot.active { background: #8b6a48; }
+
+  /* ── NEW PHOTO POPUP ── */
+  #new-photo-popup {
+    position: absolute;
+    bottom: -80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    background: #fff9f0;
+    border: 1.5px solid #d4aa78;
+    border-radius: 14px;
+    padding: 10px 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: bottom 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+  }
+  #new-photo-popup.show { bottom: 22px; }
+  .popup-dot { width: 8px; height: 8px; background: #d4784a; border-radius: 50%; animation: blink 1.4s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .popup-text { font-size: 14px; color: #8b5a30; letter-spacing: 3px; text-transform: uppercase; }
+  .popup-arrow { font-size: 16px; color: #c9a87c; }
+
+  /* ══ SLIDE 1: CLOCKS + PERMANENT PHOTO ══ */
+  #slide-clocks {
+    background: #f5efe3;
+    display: flex;
+    align-items: stretch;
+  }
+  #slide-clocks::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, #ddd5c5 1px, transparent 1px);
+    background-size: 22px 22px;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .clocks-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .clock-row { display: flex; align-items: center; }
+  .clock-block { display: flex; flex-direction: column; align-items: center; padding: 0 40px; }
+  .clock-name { font-size: 13px; color: #a08060; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 6px; }
+  .clock-time-wrap { display: flex; align-items: baseline; gap: 6px; }
+  .clock-time { font-size: 50px; font-weight: 700; color: #5a3e28; letter-spacing: 3px; line-height: 1; }
+  .clock-ampm { font-size: 16px; color: #a08060; letter-spacing: 2px; padding-bottom: 4px; }
+  .clock-date { font-size: 13px; color: #b09878; letter-spacing: 3px; text-transform: uppercase; margin-top: 6px; }
+  .clock-sep { width: 1px; height: 70px; background: #ddd0b8; }
+  .countdown-bar {
+    position: absolute;
+    bottom: 42px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 56px);
+    max-width: 420px;
+  }
+  .countdown-label {
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #a08060;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .countdown-label span {
+    font-weight: 700;
+    color: #8b6040;
+  }
+  .countdown-track {
+    height: 14px;
+    background: #f5efe3;
+    border: 1.5px solid #ddd0b8;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .countdown-fill {
+    height: 100%;
+    width: 0%;
+    background: #d4aa78;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+  .permanent-photo-panel {
+    width: 230px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px 20px;
+    border-left: 1px solid #e0d4c0;
+    position: relative;
+    z-index: 1;
+  }
+  .permanent-photo-frame {
+    width: 100%;
+    height: 100%;
+    border: 2px solid #c9b090;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff9f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #permanent-photo { width: 100%; height: 100%; object-fit: cover; }
+
+  /* ══ SLIDE 2: STATUS ══ */
+  #slide-status {
+    background: #f0ebe0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  #slide-status::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, #ddd5c5 1.5px, transparent 1.5px);
+    background-size: 22px 22px;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .status-art-wrap { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  #status-image {
+    width: 380px;
+    height: 300px;
+    object-fit: contain;
+    image-rendering: pixelated;
+  }
+  .status-pill {
+    background: #fff4e8;
+    border: 1.5px solid #d4aa78;
+    border-radius: 20px;
+    padding: 8px 28px;
+    font-size: 14px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #8b6040;
+  }
+
+  /* ══ SLIDE 3: LATEST PHOTO + MESSAGE ══ */
+  #slide-photo { background: #ede8dd; display: flex; align-items: stretch; }
+  .photo-left {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px 18px 22px 24px;
+  }
+  .photo-frame {
+    width: 100%;
+    height: 100%;
+    max-height: 415px;
+    border: 2px solid #c9b090;
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff9f2;
+    position: relative;
+  }
+  .photo-frame::before {
+    content: 'incoming';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    letter-spacing: 3px;
+    color: #c0a080;
+    text-transform: uppercase;
+    z-index: 2;
+    white-space: nowrap;
+    background: rgba(255,249,242,0.75);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  #photo-img { width: 100%; height: 100%; object-fit: cover; display: none; }
+  .photo-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .photo-empty-icon { font-size: 29px; opacity: 0.3; }
+  .photo-empty span { font-size: 14px; color: #b8a088; letter-spacing: 3px; text-transform: uppercase; }
+  .photo-right {
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 32px 24px 32px 20px;
+    gap: 16px;
+    border-left: 1px solid #ddd0b8;
+  }
+  .photo-from { font-size: 13px; color: #b09878; letter-spacing: 4px; text-transform: uppercase; }
+  .photo-hearts { font-size: 18px; color: #d4967a; letter-spacing: 5px; }
+  .photo-msg { font-family: Georgia, serif; font-size: 18px; font-style: italic; color: #6a4a30; line-height: 1.75; word-break: break-word; }
+  .photo-msg.empty { color: #c0a888; font-size: 18px; }
+  .photo-time { font-size: 13px; color: #c0a888; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+<div id="display">
+
+  <!-- SLIDE 1: CLOCKS + PERMANENT PHOTO -->
+  <div id="slide-clocks" class="screen visible">
+    <div class="clocks-panel">
+      <div class="clock-row">
+        <div class="clock-block">
+          <div class="clock-name">you</div>
+          <div class="clock-time-wrap">
+            <div class="clock-time" id="clock-you">--:--</div>
+            <div class="clock-ampm" id="ampm-you">--</div>
+          </div>
+          <div class="clock-date" id="date-you">loading</div>
+        </div>
+        <div class="clock-sep"></div>
+        <div class="clock-block">
+          <div class="clock-name">partner</div>
+          <div class="clock-time-wrap">
+            <div class="clock-time" id="clock-partner">--:--</div>
+            <div class="clock-ampm" id="ampm-partner">--</div>
+          </div>
+          <div class="clock-date" id="date-partner">loading</div>
+        </div>
+      </div>
+      <div class="countdown-bar">
+        <div class="countdown-label" id="countdown-label">— days left</div>
+        <div class="countdown-track">
+          <div class="countdown-fill" id="countdown-fill"></div>
+        </div>
+      </div>
+    </div>
+    <div class="permanent-photo-panel">
+      <div class="permanent-photo-frame">
+        <!--
+          Set your permanent photo URL here.
+          Upload any image to Supabase Storage → photos bucket,
+          copy its public URL, and paste it as the src below.
+          This never changes automatically.
+        -->
+        <img id="permanent-photo"
+             src="YOUR_PERMANENT_PHOTO_URL_HERE"
+             alt="us"
+             onerror="this.style.opacity='0'" />
+      </div>
+    </div>
+    <div class="slide-dots">
+      <div class="dot active" id="dot-0"></div>
+      <div class="dot" id="dot-1"></div>
+      <div class="dot" id="dot-2"></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: STATUS -->
+  <div id="slide-status" class="screen">
+    <div class="status-art-wrap">
+      <img id="status-image" src="../images/working.png" alt="status" />
+      <div class="status-pill" id="status-label">loading...</div>
+    </div>
+    <div class="slide-dots">
+      <div class="dot" id="dot-0b"></div>
+      <div class="dot active" id="dot-1b"></div>
+      <div class="dot" id="dot-2b"></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: LATEST PHOTO + MESSAGE -->
+  <div id="slide-photo" class="screen">
+    <div class="photo-left">
+      <div class="photo-frame">
+        <img id="photo-img" alt="incoming photo" />
+        <div class="photo-empty" id="photo-empty">
+          <div class="photo-empty-icon">📷</div>
+          <span>waiting for a message</span>
+        </div>
+      </div>
+    </div>
+    <div class="photo-right">
+      <div class="photo-from">from sender</div>
+      <div class="photo-hearts">♡ ♡ ♡</div>
+      <div class="photo-msg empty" id="photo-msg">no message yet...</div>
+      <div class="photo-time" id="photo-time"></div>
+    </div>
+    <div class="slide-dots">
+      <div class="dot" id="dot-0c"></div>
+      <div class="dot" id="dot-1c"></div>
+      <div class="dot active" id="dot-2c"></div>
+    </div>
+  </div>
+
+  <!-- NEW PHOTO POPUP (floats above all slides) -->
+  <div id="new-photo-popup">
+    <div class="popup-dot"></div>
+    <div class="popup-text">new message</div>
+    <div class="popup-arrow">→</div>
+  </div>
+
+</div>
+<script>
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── STATUS IMAGE SWAP ──────────────────────────────────────────────────────
+const STATUS_IMAGES = {
+  'working':      '../images/working.png',
+  'sleeping':     '../images/sleeping.png',
+  'gone fishing': '../images/fishing.png',
+};
+
+function drawScene(status) {
+  const img = document.getElementById('status-image');
+  img.src = STATUS_IMAGES[status] || STATUS_IMAGES['working'];
+}
+
+// ── CLOCKS ─────────────────────────────────────────────────────────────────
+// IANA timezone names — customize for your two locations
+const TZ_YOU      = 'America/Los_Angeles';
+const TZ_PARTNER  = 'America/New_York';
+
+function fmtTime(dt,tz){return dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true,timeZone:tz}).replace(/\s?(AM|PM)/,'');}
+function fmtAmPm(dt,tz){return dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true,timeZone:tz}).match(/AM|PM/)?.[0]||'';}
+function fmtDate(dt,tz){return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:tz}).toUpperCase();}
+
+function updateClocks(){
+  const now=new Date();
+  document.getElementById('clock-you').textContent     =fmtTime(now,TZ_YOU);
+  document.getElementById('ampm-you').textContent      =fmtAmPm(now,TZ_YOU);
+  document.getElementById('date-you').textContent      =fmtDate(now,TZ_YOU);
+  document.getElementById('clock-partner').textContent =fmtTime(now,TZ_PARTNER);
+  document.getElementById('ampm-partner').textContent  =fmtAmPm(now,TZ_PARTNER);
+  document.getElementById('date-partner').textContent  =fmtDate(now,TZ_PARTNER);
+}
+
+// ── COUNTDOWN ───────────────────────────────────────────────────────────────
+// Customize start/target dates, or remove this block and the countdown HTML
+const COUNTDOWN_START = new Date(2026, 0, 1);
+
+function updateCountdown() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(2026, 11, 31);
+  target.setHours(0, 0, 0, 0);
+
+  const msPerDay = 86400000;
+  const daysLeft = Math.max(0, Math.ceil((target - today) / msPerDay));
+  const totalDays = Math.max(1, Math.ceil((target - COUNTDOWN_START) / msPerDay));
+  const elapsed = totalDays - daysLeft;
+  const pct = Math.min(100, Math.max(0, (elapsed / totalDays) * 100));
+
+  document.getElementById('countdown-label').innerHTML =
+    `<span>${daysLeft}</span> ${daysLeft === 1 ? 'day' : 'days'} left`;
+  document.getElementById('countdown-fill').style.width = `${pct}%`;
+}
+
+// ── SLIDES ─────────────────────────────────────────────────────────────────
+const SCREENS=['slide-clocks','slide-status','slide-photo'];
+const NUM=3;
+let current=0;
+
+function updateDots(idx){
+  for(let i=0;i<NUM;i++){
+    ['dot-'+i,'dot-'+i+'b','dot-'+i+'c'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.className='dot'+(i===idx?' active':'');
+    });
+  }
+}
+
+function showSlide(idx){
+  current=((idx%NUM)+NUM)%NUM;
+  SCREENS.forEach((id,i)=>document.getElementById(id).classList.toggle('visible',i===current));
+  updateDots(current);
+  if(current===2) markViewed();
+}
+
+document.getElementById('display').addEventListener('click',()=>showSlide(current+1));
+
+// ── POPUP ──────────────────────────────────────────────────────────────────
+const popup=document.getElementById('new-photo-popup');
+function showPopup(){popup.classList.add('show');}
+function hidePopup(){popup.classList.remove('show');}
+
+popup.addEventListener('click',(e)=>{
+  e.stopPropagation();
+  hidePopup();
+  showSlide(2);
+  markViewed();
+});
+
+async function markViewed(){
+  hidePopup();
+  await sb.from('message').update({viewed:true}).eq('id',1);
+}
+
+// ── SUPABASE ───────────────────────────────────────────────────────────────
+function updateStatusUI(status){
+  document.getElementById('status-label').textContent=status;
+  drawScene(status);
+}
+
+function updateMessageUI(data){
+  const img=document.getElementById('photo-img');
+  const empty=document.getElementById('photo-empty');
+  const msg=document.getElementById('photo-msg');
+  const time=document.getElementById('photo-time');
+
+  if(data.photo_url){img.src=data.photo_url;img.style.display='block';empty.style.display='none';}
+  else{img.style.display='none';empty.style.display='flex';}
+
+  if(data.text){msg.textContent=data.text;msg.classList.remove('empty');}
+  else{msg.textContent='no message yet...';msg.classList.add('empty');}
+
+  if(data.sent_at){
+    const dt=new Date(data.sent_at);
+    time.textContent=fmtTime(dt,TZ_PARTNER)+' '+fmtAmPm(dt,TZ_PARTNER)+' · '+fmtDate(dt,TZ_PARTNER);
+  }
+
+  if(data.viewed===false&&(data.photo_url||data.text)) showPopup();
+  else hidePopup();
+}
+
+async function loadInitialData(){
+  const [s,m]=await Promise.all([
+    sb.from('status').select('*').eq('id',1).single(),
+    sb.from('message').select('*').eq('id',1).single()
+  ]);
+  if(s.data) updateStatusUI(s.data.value);
+  if(m.data) updateMessageUI(m.data);
+}
+
+function subscribeRealtime(){
+  sb.channel('desk-pet')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'status'},p=>updateStatusUI(p.new.value))
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'message'},p=>updateMessageUI(p.new))
+    .subscribe();
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+updateClocks();
+setInterval(updateClocks,1000);
+updateCountdown();
+loadInitialData();
+subscribeRealtime();
+showSlide(0);
+</script>
+</body>
+</html>
